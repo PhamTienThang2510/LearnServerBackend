@@ -1,9 +1,11 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using LiteNetLib;
-using LiteNetLib.Utils;
+using Microsoft.Extensions.DependencyInjection;
+using NetworkShare;
+using LearnBackendSource.Packets;
+using LearnBackendSource.Handlers;
 
 namespace LearnBackendSource
 {
@@ -11,6 +13,12 @@ namespace LearnBackendSource
     {
         private NetManager? _server;
         private bool _isRunning;
+        private readonly IServiceProvider _serviceProvider;
+
+        public NetworkServer(IServiceProvider serviceProvider)
+        {
+            _serviceProvider = serviceProvider;
+        }
 
         public void Start(int port = 9050, string key = "")
         {
@@ -51,16 +59,20 @@ namespace LearnBackendSource
 
         public void OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channelNumber, DeliveryMethod deliveryMethod)
         {
-            byte[] bytes = reader.GetRemainingBytes();
-            string msg = System.Text.Encoding.UTF8.GetString(bytes);
-            Console.WriteLine($"[Server] Received from peer {peer.Id}: {msg}");
-
-            // Gửi phản hồi lại cho Client
-            NetDataWriter writer = new NetDataWriter();
-            writer.Put($"[Server Response]: Server da nhan duoc '{msg}'!");
-            peer.Send(writer, DeliveryMethod.ReliableOrdered);
-
-            reader.Recycle();
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                try
+                {
+                    var packetType = (PacketType)reader.GetByte();
+                    var packet = ResolvePacket(packetType, reader);
+                    var handler = ResolveHandler(scope.ServiceProvider, packetType);
+                    handler.HandlePacket(packet, peer);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Server] Error processing packet: {ex.Message}");
+                }
+            }
         }
 
         public void OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType)
@@ -76,6 +88,28 @@ namespace LearnBackendSource
             Console.WriteLine($"[Server] Connection request from {request.RemoteEndPoint}");
             // Chấp nhận kết nối từ mọi client
             request.Accept();
+        }
+
+        private INetPacket ResolvePacket(PacketType packetType, NetPacketReader reader)
+        {
+            var packetRegistry = _serviceProvider.GetRequiredService<PacketRegistry>();
+            if (packetRegistry.PacketTypes.TryGetValue(packetType, out var packetTypeClass))
+            {
+                var packet = (INetPacket)Activator.CreateInstance(packetTypeClass)!;
+                packet.Deserialize(reader);
+                return packet;
+            }
+
+            throw new InvalidOperationException($"Chưa đăng ký PacketType {packetType} trong PacketRegistry.");
+        }
+
+        private IPacketHandler ResolveHandler(IServiceProvider provider, PacketType packetType)
+        {
+            return packetType switch
+            {
+                PacketType.AuthRequest => provider.GetRequiredService<AuthRequestHandler>(),
+                _ => throw new NotImplementedException($"No handler implementation for {packetType}")
+            };
         }
     }
 }
