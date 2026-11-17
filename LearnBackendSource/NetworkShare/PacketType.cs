@@ -1,24 +1,34 @@
 using LiteNetLib.Utils;
 using LiteNetLib;
+
 namespace NetworkShare
 {
     public enum PacketType
     {
-        #region Client to Server
         Invalid = 0,
         AuthRequest = 1,
-        #endregion
-        #region Server to Client
-        AuthResponse = 100,
-        #endregion
+        FindMatchRequest = 2,
+        PlayerMoveRequest = 3,
+        RestartMatchRequest = 4,
+    }
+
+    public enum PacketResponseType
+    {
+        Invalid = 0,
+        AuthResponse = 1,
+        MatchStartResponse = 2,
+        MoveUpdateResponse = 3,
+        GameOverResponse = 4,
+        OpponentLeftResponse = 5,
     }
 
     public interface INetPacket : INetSerializable
     {
         PacketType Type { get; }
     }
-    public interface INetPacketResponse
+
+    public interface INetPacketResponse : INetSerializable
     {
-        PacketType ResponseType { get; }
+        PacketResponseType ResponseType { get; }
     }
 }

@@ -4,14 +4,17 @@ using System.Net.Sockets;
 using System.Threading;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using LearnBackendSource.Game;
 using LearnBackendSource.Handlers;
 using NetworkShare;
+
 namespace LearnBackendSource
 {
     public class NetworkServer : INetEventListener
     {
         private NetManager? _server;
         private bool _isRunning;
+        private readonly RoomManager _roomManager = new RoomManager();
 
         public void Start(int port = 9050, string key = "")
         {
@@ -43,6 +46,7 @@ namespace LearnBackendSource
         public void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
         {
             Console.WriteLine($"[Server] Peer disconnected: {peer.Address}, Reason: {disconnectInfo.Reason}");
+            _roomManager.OnPeerDisconnected(peer);
         }
 
         public void OnNetworkError(IPEndPoint endPoint, SocketError socketError)
@@ -66,6 +70,21 @@ namespace LearnBackendSource
                         response.Serialize(writer);
                         peer.Send(writer, DeliveryMethod.ReliableOrdered);
                         break;
+
+                    case PacketType.FindMatchRequest:
+                        _roomManager.EnqueueMatchmaking(peer);
+                        break;
+
+                    case PacketType.PlayerMoveRequest:
+                        var moveRequest = new Net_PlayerMoveRequest();
+                        moveRequest.Deserialize(reader);
+                        _roomManager.HandlePlayerMove(peer, moveRequest.CellIndex);
+                        break;
+
+                    case PacketType.RestartMatchRequest:
+                        _roomManager.HandleRestartMatch(peer);
+                        break;
+
                     default:
                         Console.WriteLine($"[Server] Unknown packet type received: {packetType}");
                         break;

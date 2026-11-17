@@ -1,20 +1,26 @@
+using System;
 using LiteNetLib;
-using LiteNetLib.Utils;
 using NetworkShare;
+
 namespace LearnBackendSource.Handlers
 {
     public static class AuthRequestHandler 
     {
         public static Net_AuthResponse HandleAuthRequest(NetPeer peer, Net_AuthRequest authRequest)
         {
-            Console.WriteLine($"[Server] Received AuthRequest from {peer.Id}: Username={authRequest.Username}, Password={authRequest.Password}");
-            // Xử lý xác thực ở đây, ví dụ: kiểm tra cơ sở dữ liệu
-            if(authRequest.Username == "admin" && authRequest.Password == "123")
+            Console.WriteLine($"[Server] Received AuthRequest from Peer {peer.Id}: Username={authRequest.Username}, Password={authRequest.Password}");
+
+            // Cho phép admin/123 hoặc bất kỳ tài khoản test không rỗng nào
+            bool isValid = (authRequest.Username == "admin" && authRequest.Password == "123") ||
+                           (!string.IsNullOrWhiteSpace(authRequest.Username) && !string.IsNullOrWhiteSpace(authRequest.Password));
+
+            if (isValid)
             {
                 return new Net_AuthResponse
                 {
                     IsSuccess = true,
-                    Message = "Authentication successful"
+                    PlayerId = peer.Id,
+                    Message = $"Chào mừng {authRequest.Username}!"
                 };
             }
             else
@@ -22,7 +28,8 @@ namespace LearnBackendSource.Handlers
                 return new Net_AuthResponse
                 {
                     IsSuccess = false,
-                    Message = "Invalid username or password"
+                    PlayerId = -1,
+                    Message = "Tài khoản hoặc mật khẩu không hợp lệ"
                 };
             }
         }
