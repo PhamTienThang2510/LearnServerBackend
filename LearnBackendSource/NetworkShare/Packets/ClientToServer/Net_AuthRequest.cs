@@ -6,14 +6,14 @@ namespace NetworkShare
     {
         public PacketType Type => PacketType.AuthRequest;
 
-        public string Username { get; set; }
-        public string Password { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
 
         public void Serialize(NetDataWriter writer)
         {
             writer.Put((byte)Type);
-            writer.Put(Username);
-            writer.Put(Password);
+            writer.Put(Username ?? string.Empty);
+            writer.Put(Password ?? string.Empty);
         }
 
         public void Deserialize(NetDataReader reader)

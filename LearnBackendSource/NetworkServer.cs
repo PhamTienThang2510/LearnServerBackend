@@ -4,7 +4,8 @@ using System.Net.Sockets;
 using System.Threading;
 using LiteNetLib;
 using LiteNetLib.Utils;
-
+using LearnBackendSource.Handlers;
+using NetworkShare;
 namespace LearnBackendSource
 {
     public class NetworkServer : INetEventListener
@@ -51,16 +52,29 @@ namespace LearnBackendSource
 
         public void OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channelNumber, DeliveryMethod deliveryMethod)
         {
-            byte[] bytes = reader.GetRemainingBytes();
-            string msg = System.Text.Encoding.UTF8.GetString(bytes);
-            Console.WriteLine($"[Server] Received from peer {peer.Id}: {msg}");
+            try
+            {
+                var packetType = (PacketType)reader.GetByte();
+                switch (packetType)
+                {
+                    case PacketType.AuthRequest:
+                        var request = new Net_AuthRequest();
+                        request.Deserialize(reader);
 
-            // Gửi phản hồi lại cho Client
-            NetDataWriter writer = new NetDataWriter();
-            writer.Put($"[Server Response]: Server da nhan duoc '{msg}'!");
-            peer.Send(writer, DeliveryMethod.ReliableOrdered);
-
-            reader.Recycle();
+                        var response = AuthRequestHandler.HandleAuthRequest(peer, request);
+                        var writer = new NetDataWriter();
+                        response.Serialize(writer);
+                        peer.Send(writer, DeliveryMethod.ReliableOrdered);
+                        break;
+                    default:
+                        Console.WriteLine($"[Server] Unknown packet type received: {packetType}");
+                        break;
+                }
+            }
+            finally
+            {
+                reader.Recycle();
+            }
         }
 
         public void OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType)
