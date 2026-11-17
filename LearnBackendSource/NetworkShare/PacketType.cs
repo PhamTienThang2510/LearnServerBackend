@@ -1,5 +1,5 @@
 using LiteNetLib.Utils;
-using LiteNetLib;
+
 namespace NetworkShare
 {
     public enum PacketType
@@ -16,9 +16,5 @@ namespace NetworkShare
     public interface INetPacket : INetSerializable
     {
         PacketType Type { get; }
-    }
-    public interface IPacketHandler
-    {
-        void HandlePacket(INetPacket packet, NetPeer peer);
     }
 }

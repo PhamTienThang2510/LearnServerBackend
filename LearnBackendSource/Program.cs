@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using LiteNetLib;
-using Microsoft.Extensions.DependencyInjection;
-using NetworkShare;
-using LearnBackendSource.Packets;
-using Infrastructure;
+
 namespace LearnBackendSource
 {
     internal class Program
@@ -12,10 +8,12 @@ namespace LearnBackendSource
         static void Main(string[] args)
         {
             Console.WriteLine("=== Starting Backend Server ===");
-            var container = Container.Configure();
-            var server = container.GetService<NetworkServer>();
+            var server = new NetworkServer();
 
+            // Chạy server loop ở background task
+            Task.Run(() => server.Start(9050));
 
+            // Bắt sự kiện khi nhấn Ctrl + C
             Console.CancelKeyPress += (sender, e) =>
             {
                 e.Cancel = true;
@@ -23,7 +21,16 @@ namespace LearnBackendSource
                 server.Stop();
             };
 
-            server.Start(9050);
+            Console.WriteLine("[App] Server is running. Press 'q' or 'exit' and Enter to quit.\n");
+            while (true)
+            {
+                var input = Console.ReadLine();
+                if (input?.Trim().ToLower() is "exit" or "q")
+                {
+                    server.Stop();
+                    break;
+                }
+            }
         }
     }
 }
